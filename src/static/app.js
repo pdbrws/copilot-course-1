@@ -19,6 +19,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const card = document.createElement("div");
         card.className = "activity-card";
 
+        // Build participants list with delete icon
+        const participantsHtml = details.participants.map(email => `
+          <li class="participant-item">
+            <span class="participant-email">${email}</span>
+            <span class="delete-icon" title="Remove participant" data-activity="${encodeURIComponent(name)}" data-email="${encodeURIComponent(email)}">&#128465;</span>
+          </li>
+        `).join('');
+
         card.innerHTML = `
                 <h4>${name}</h4>
                 <p><strong>Description:</strong> ${details.description}</p>
@@ -26,8 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 <p><strong>Available Spots:</strong> ${details.max_participants - details.participants.length} of ${details.max_participants}</p>
                 <div class="participants-list">
                     <h5>Current Participants:</h5>
-                    <ul>
-                        ${details.participants.map(email => `<li>${email}</li>`).join('')}
+                    <ul class="participants-ul">
+                        ${participantsHtml}
                     </ul>
                 </div>
             `;
@@ -39,6 +47,33 @@ document.addEventListener("DOMContentLoaded", () => {
         option.value = name;
         option.textContent = name;
         activitySelect.appendChild(option);
+      });
+
+      // Add event listeners for delete icons
+      document.querySelectorAll('.delete-icon').forEach(icon => {
+        icon.addEventListener('click', async (e) => {
+          const activity = decodeURIComponent(icon.getAttribute('data-activity'));
+          const email = decodeURIComponent(icon.getAttribute('data-email'));
+          if (!confirm(`Remove ${email} from ${activity}?`)) return;
+          try {
+            const response = await fetch(`/activities/${encodeURIComponent(activity)}/unregister`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email })
+            });
+            if (!response.ok) {
+              throw new Error(await response.text());
+            }
+            messageDiv.textContent = `Unregistered ${email} from ${activity}`;
+            messageDiv.className = "message success";
+            messageDiv.classList.remove("hidden");
+            loadActivities();
+          } catch (error) {
+            messageDiv.textContent = "Error unregistering: " + error.message;
+            messageDiv.className = "message error";
+            messageDiv.classList.remove("hidden");
+          }
+        });
       });
     } catch (error) {
       console.error("Error loading activities:", error);
